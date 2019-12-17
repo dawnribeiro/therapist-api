@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using therapist_api;
 using therapist_api.Models;
+using Newtonsoft.Json;
 
 namespace dotnet_sdg_template.Controllers
 {
@@ -42,12 +43,39 @@ namespace dotnet_sdg_template.Controllers
 
       return therapist;
     }
+    // [HttpGet("therapist/{state}")]
+    // public async Task<ActionResult<List<therapist>>> GetTherapistByState([FromRoute]string state)
+    // {
+    //   var therapistsInState = await _context.Therapists.Where(w => w.State == state).ToListAsync();
 
-    [HttpGet("therapist/{zipCode}")]
+    //   if (therapistsInState == null)
+    //   {
+    //     return NotFound();
+    //   }
+
+    //   return therapistsInState;
+    // }
+    public class DataList
+    {
+      public string Code { get; set; }
+      public string City { get; set; }
+      public string State { get; set; }
+      public double Latitude { get; set; }
+      public double Longitude { get; set; }
+      public string County { get; set; }
+      public double? Distance { get; set; }
+    }
+
+    public class ZipCodeResponses
+    {
+      public List<DataList> DataList { get; set; }
+    }
+
+    [HttpGet("search/{zipCode}")]
     public async Task<ActionResult<List<therapist>>> GetTherapistByCode([FromRoute]string zipCode)
     {
       var zipCodes = new List<string>();
-      var API_KEY = "8XGDVIDXM9HTGHVM64W7S";
+      var API_KEY = "8XGDVIDXM9HTGHVM64W7";
       var API = $"https://api.zip-codes.com/ZipCodesAPI.svc/1.0/FindZipCodesInRadius?zipcode={zipCode}&minimumradius=0&maximumradius=50&key={API_KEY}";
 
       // ... Use HttpClient.
@@ -57,15 +85,11 @@ namespace dotnet_sdg_template.Controllers
       {
         // ... Read the string.
         string result = await content.ReadAsStringAsync();
-        var results = result.Split("\n").Skip(1).SkipLast(1);
-        foreach (string resultZip in results)
-        {
-          Console.WriteLine(resultZip);
-          zipCodes.Add(resultZip);
-        }
+        var results = JsonConvert.DeserializeObject<ZipCodeResponses>(result);
+        zipCodes = results.DataList.Select(s => s.Code).ToList();
       }
       // searching your context for the Therapist based on the zips from the APi call above
-      var therapistsInZip = _context.Therapists.Where(w => zipCodes.Contains(zipCode));
+      var therapistsInZip = _context.Therapists.Where(w => zipCodes.Contains(w.PostalCode));
       return await therapistsInZip.ToListAsync();
     }
 
